@@ -36,7 +36,15 @@ class OverlapValidator < ActiveModel::EachValidator
     self.add_attributes(record, options[:scope]) if options && options[:scope].present?
     self.add_query_options(options[:query_options]) if options && options[:query_options].present?
 
-    return self.scoped_model.exists?([sql_conditions, sql_values])
+    crossed_records = self.scoped_model.where([sql_conditions, sql_values])
+
+    if options[:nested_scope].present?
+      ignored_records = record.send(options[:nested_scope]).send(record_table_name(record)).to_a.select(&:marked_for_destruction?)
+
+      crossed_records = crossed_records.to_a.reject(&ignored_records.method(:include?))
+    end
+
+    crossed_records.any?
   end
 
 
